@@ -8,7 +8,13 @@ RUN apt-get update && apt-get install -y locales \
 ENV LANG en_US.utf8
 
 RUN export DEBIAN_FRONTEND=noninteractive && apt-get update && apt-get install -qy uwsgi uwsgi-plugin-python3 python3-pip ca-certificates && \
-    pip3 install --no-cache --upgrade pip
+    pip3 install --no-cache --upgrade pip && \
+    chgrp 0 /etc/passwd && \
+    chmod g=u /etc/passwd && \
+    chgrp 0 /home && \
+    chmod g=u /home
+
+ADD entrypoint.sh /usr/local/etc/entrypoint.sh
 
 ENV SERVICE_UID=33
 ENV SERVICE_GID=33
@@ -22,10 +28,4 @@ ENV PGSERVICEFILE="/srv/pg_service.conf"
 
 STOPSIGNAL SIGINT
 
-ENTRYPOINT ["/bin/sh", "-c", "\
-    mkdir -p /home/qwc && \
-    chown $SERVICE_UID:$SERVICE_GID /home/qwc && \
-    HOME=/home/qwc uwsgi --http-socket :9090 --buffer-size $REQ_HEADER_BUFFER_SIZE --processes $UWSGI_PROCESSES \
-    --threads $UWSGI_THREADS --plugins python3 $UWSGI_EXTRA --protocol uwsgi --wsgi-disable-file-wrapper \
-    --uid $SERVICE_UID --gid $SERVICE_GID --master --chdir /srv/qwc_service --mount $SERVICE_MOUNTPOINT=server:app \
-    --manage-script-name"]
+ENTRYPOINT ["/bin/bash", "/usr/local/etc/entrypoint.sh"]
